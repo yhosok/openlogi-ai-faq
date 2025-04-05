@@ -2,7 +2,7 @@
 
 ## 概要
 
-このプロジェクトは、オープンロジのヘルプサイト (`https://help.openlogi.com/`) をクロールしてFAQデータを抽出し、そのデータを使ってGoogle Gemini API (Gemini 1.5 Flash) と対話形式でQ&Aを行うアプリケーションです。
+このプロジェクトは、オープンロジのヘルプサイト (`https://help.openlogi.com/`) をクロールしてFAQデータを抽出し、そのデータを使ってGoogle Gemini API (Gemini 2.0 Flash 等) と対話形式でQ&Aを行うアプリケーションです。
 
 Pythonのパッケージ管理ツールとして `uv` を使用します。
 
@@ -38,13 +38,12 @@ Pythonのパッケージ管理ツールとして `uv` を使用します。
 
 ## セットアップ手順
 
-1.  **(もしリポジトリがあれば)** このリポジトリをクローンします:
+1.  このリポジトリをクローンします:
 
     ```text
     git clone <repository_url>
     cd openlogi-ai-faq
     ```
-    (リポジトリがない場合は、プロジェクトディレクトリを作成し、`src/openlogi_ai_faq/crawler.py`, `src/openlogi_ai_faq/qa_app.py`, `src/openlogi_ai_faq/__init__.py`, `pyproject.toml`, `.gitignore` を配置します)
 
 2.  **仮想環境を作成:** プロジェクトのルートディレクトリで実行します。
 
@@ -62,7 +61,8 @@ Pythonのパッケージ管理ツールとして `uv` を使用します。
 
         ```text
         .venv\Scripts\Activate.ps1
-        ```    *   **Windows (Command Prompt):**
+        ```
+    *   **Windows (Command Prompt):**
 
         ```text
         .venv\Scripts\activate.bat
