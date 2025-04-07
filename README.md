@@ -2,7 +2,7 @@
 
 ## 概要
 
-このプロジェクトは、オープンロジのヘルプサイト (`https://help.openlogi.com/`) をクロールしてFAQデータを抽出し、そのデータを使ってGoogle Gemini API (Gemini 2.0 Flash 等) と対話形式でQ&Aを行うアプリケーションです。
+このプロジェクトは、オープンロジのヘルプサイト (`https://help.openlogi.com/`) をクロールしてFAQデータを抽出し、そのデータを使ってGoogle Gemini API と対話形式でQ&Aを行うアプリケーションです。回答には、根拠となったFAQページのURL（参照FAQリンク）が含まれることがあります。
 
 Pythonのパッケージ管理ツールとして `uv` を使用します。
 
@@ -25,59 +25,57 @@ Pythonのパッケージ管理ツールとして `uv` を使用します。
 *   `faq_data_openlogi.json` ファイルを読み込みます。
     *   **初回実行時やファイルが存在しない場合:** ユーザーに確認後、`crawler.py` を実行してFAQデータを生成します。
     *   **ファイルが存在する場合:** ユーザーに確認後、`crawler.py` を実行してデータを更新するか、既存のデータを使用するかを選択できます。
-*   読み込んだFAQデータを整形し、Google Gemini API (`gemini-2.0-flash` モデル等) の**ChatSession**に初期コンテキストとして投入します。
+*   読み込んだFAQデータを整形し、Google Gemini API (デフォルト: `gemini-2.5-pro-exp-03-25`、変更可能) の**ChatSession**に初期コンテキストとして投入します。
     *   `ChatSession` を利用することで、会話の履歴が維持され、FAQ情報に基づいた回答が可能になります。
-*   ユーザーがコマンドラインで質問を入力すると、Gemini APIに問い合わせ、FAQコンテキストに基づいた回答を表示します。
+*   モデルに対して、回答の根拠となったFAQのURLを「参照FAQ: [URL]」形式で出力するように指示します。
+    *   **注記:** この参照FAQリンクの出力精度は、使用するGeminiモデルに依存します。**`gemini-2.5-pro` 系モデルで比較的正確なリンクが出力される傾向がありますが、他のモデル（例: `gemini-1.5-flash`）では関連性の低いリンクが表示される場合があります。**
+*   ユーザーがコマンドラインで質問を入力すると、Gemini APIに問い合わせ、FAQコンテキストに基づいた回答（参照FAQリンクを含む場合あり）を表示します。
 *   APIキーは `.env` ファイルから安全に読み込みます。
+*   セッション終了時に、そのセッションで使用されたAPIの合計トークン数（推定値）を表示します。
 
 ## 必要なもの
 
 *   **Python 3.8** 以上
 *   **`uv`**: 高速なPythonパッケージ管理ツール ([インストール方法](https://astral.sh/uv#installation))
 *   **Google Gemini API キー**: Google AI Studio ([https://aistudio.google.com/app/apikey](https://aistudio.google.com/app/apikey)) などで取得してください。
+    *   `gemini-2.5-pro` 系の実験版/プレビュー版モデルを使用する場合、アクセス権が必要な場合があります。
 
 ## セットアップ手順
 
-1.  このリポジトリをクローンします:
-
+1.  **リポジトリをクローン:** このリポジトリをローカル環境にクローンします。
     ```text
     git clone <repository_url>
     cd openlogi-ai-faq
     ```
+    `<repository_url>` は実際のリポジトリURLに置き換えてください。
 
 2.  **仮想環境を作成:** プロジェクトのルートディレクトリで実行します。
-
     ```text
     uv venv
     ```
 
 3.  **仮想環境をアクティベート:**
     *   **macOS / Linux (bash/zsh):**
-
         ```text
         source .venv/bin/activate
         ```
     *   **Windows (PowerShell):**
-
         ```text
         .venv\Scripts\Activate.ps1
         ```
     *   **Windows (Command Prompt):**
-
         ```text
         .venv\Scripts\activate.bat
         ```
     (ターミナルのプロンプトの先頭に `(.venv)` のような表示が出ます)
 
 4.  **依存関係をインストール:** `pyproject.toml` に基づいて必要なライブラリをインストールします。
-
     ```text
     uv pip install -e .
     ```
     (`pyproject.toml` が正しく設定されていれば、`requests`, `beautifulsoup4`, `google-generativeai`, `python-dotenv`, `lxml` などがインストールされます。)
 
 5.  **.env ファイルを作成:** プロジェクトのルートディレクトリに `.env` という名前のファイルを作成し、以下のようにAPIキーを記述します。
-
     ```text
     GEMINI_API_KEY=YOUR_API_KEY_HERE
     ```
@@ -118,7 +116,7 @@ python -m openlogi_ai_faq.qa_app
 質問を入力してください: (ここに質問を入力してEnter)
 ```
 
-入力された質問に対して、読み込まれたFAQ情報に基づいてGeminiが回答を生成し、表示します。`quit` または `exit` と入力するとアプリを終了します。
+入力された質問に対して、読み込まれたFAQ情報に基づいてGeminiが回答を生成し、表示します。回答の最後に参照FAQリンクが含まれる場合があります。`quit` または `exit` と入力するとアプリを終了します。セッション終了時には、使用された合計トークン数（推定値）が表示されます。
 
 ## 設定
 
@@ -131,14 +129,16 @@ python -m openlogi_ai_faq.qa_app
     *   `MAX_PAGES`: クロールする最大ページ数（安全装置）(デフォルト: `10000`)。
 *   **`src/openlogi_ai_faq/qa_app.py`:**
     *   `FAQ_DATA_FILE`: 読み込むFAQデータファイル名 (デフォルトは `crawler.DEFAULT_OUTPUT_FILENAME` を参照)
-    *   `MODEL_NAME`: 使用するGeminiモデル名 (デフォルト: `"gemini-1.5-flash-latest"`)
+    *   `MODEL_NAME`: 使用するGeminiモデル名。複数記載されており、コメントアウトで切り替え可能です (デフォルト: `"gemini-2.5-pro-exp-03-25"`)。
 
 ## 注意点
 
 *   **Webスクレイピングのマナー:** クロール対象サイトの利用規約や `robots.txt` を確認し、`REQUEST_DELAY` を適切に設定して、サーバーに過度な負荷をかけないように注意してください。
 *   **抽出ロジックの依存性:** `crawler.py` のFAQ抽出ロジックは、オープンロジヘルプサイトの特定のHTML構造に依存しています。サイト構造が変更された場合、修正が必要です。
-*   **ChatSessionとコンテキスト長:** `qa_app.py` では `ChatSession` を利用してFAQコンテキストを維持します。FAQデータが非常に大きい場合、モデルのコンテキスト長上限により、一部のデータしか利用されない可能性があります（警告メッセージが表示されます）。
-*   **APIコストとレート制限:** Gemini APIの利用にはコストが発生する場合があります。APIのレート制限（単位時間あたりのリクエスト数上限）に達することがあります。
+*   **参照FAQリンクの精度:** Q&Aアプリは回答の根拠となったFAQのURLを出力しようと試みますが、この精度は使用するモデルに依存します。**`gemini-2.5-pro` 系モデル以外では、関連性の低いURLが表示される可能性があります。**
+*   **ChatSessionとトークン数:** `qa_app.py` では `ChatSession` を利用してFAQコンテキストを維持します。会話が長くなるほど、APIに送信されるトークン数が増加し、応答時間やコストに影響が出る可能性があります。表示される合計トークン数は推定値です。
+*   **APIコストとレート制限:** Gemini APIの利用にはコストが発生する場合があります（特に`preview`版モデル）。APIのレート制限（単位時間あたりのリクエスト数上限）に達することがあります（特に`exp`版モデル）。
+*   **プレビュー/実験版モデル:** デフォルトで使用する `gemini-2.5-pro-exp-03-25` は実験版であり、無料ですがレート制限が低い場合があります。有料のプレビュー版や安定版を使用する場合は、`qa_app.py` の `MODEL_NAME` を変更してください。
 
 ## ライセンス
 
